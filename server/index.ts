@@ -30,6 +30,8 @@ app.get('/api/vehiculos', async (req, res) => {
               estacionamiento.estacionamiento, 
               edificio.nombre AS ubicacion,
               vehiculo.num_placa,
+              vehiculo.color,
+              vehiculo.kilometraje
               vehiculo.vin
           FROM vehiculo
           JOIN cat_marca ON vehiculo.fk_marca = cat_marca.id_marca
@@ -50,6 +52,8 @@ app.get('/api/vehiculos', async (req, res) => {
             string estacionamiento, 
             string ubicacion, 
             string num_placa
+            string color
+            int kilometraje
             string vin
          */ 
 
@@ -60,21 +64,21 @@ app.get('/api/vehiculos', async (req, res) => {
   }
 });
 
-app.post('/api/vehiculos/insert/nuevo', async (req, res) => {
+app.post('/api/vehiculos/insert', async (req, res) => {
   try {
       const {
-          vin,
-          marca,
-          submarca,
-          modelo,
-          combustible,
-          transmision,
-          numpuertas,
-          numejes,
-          tipovehiculo,
-          estacionamiento,
-          ubicacion,
-          num_placa,
+          vin, //string (17)
+          marca, //string nombre de la marca
+          submarca, //string
+          modelo,  //string año
+          combustible, //string nombre del combustible
+          transmision, //string nombre de la transmision
+          numpuertas, //int
+          numejes, //int
+          tipovehiculo, //string nombre del tipo de vehiculo
+          estacionamiento, //int numero del estacionamiento
+          ubicacion, //string nombre del edificio
+          num_placa, //string (7)
       } = req.body;
 
       // Obtener los IDs de las tablas relacionadas
@@ -111,21 +115,87 @@ app.post('/api/vehiculos/insert/nuevo', async (req, res) => {
   }
 });
 
-app.put('/api/vehiculos/:id', async (req, res) => {
+app.post('/api/importaciones/insert/', async (req, res) => {
+    try {
+        const {
+
+            aduana_ing, //string
+            fecha_in, //date
+            num_in, //int
+            vin, //string
+            num_aduana, //string (2)
+        } = req.body;
+  
+        // Insertar la importacion
+        await db.none(
+            `INSERT INTO importaciones (aduana_ing, fecha_in, num_in, fk_vin, num_aduana)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+                aduana_ing,
+                fecha_in,
+                num_in,
+                vin,
+                num_aduana,
+            ]
+        );
+  
+        res.status(201).json({ message: 'importación insertada correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+        console.log('Hubo un error... ' + err.message);
+    }
+});
+
+app.post('/api/seguro/insert/', async (req, res) => {
+    try {
+        const {
+
+            poliza, //string
+            aseguradora, //string nombre de la aseguradora
+            vin, //string
+            vencimiento, //date
+            cobertura, //string nombre de la cobertura
+
+        } = req.body;
+
+        const idAseguradora = await db.one('SELECT id_aseguradora FROM aseguradora WHERE nombre = $1', [aseguradora]);
+        const idCobertura = await db.one('SELECT id FROM cat_cobertura WHERE nombre = $1', [cobertura]);
+        
+        // Insertar la importacion
+        await db.none(
+            `INSERT INTO importaciones (aduana_ing, fecha_in, num_in, fk_vin, num_aduana)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+                poliza,
+                idAseguradora.id_aseguradora,
+                vin,
+                vencimiento,
+                idCobertura.id,
+            ]
+        );
+  
+        res.status(201).json({ message: 'importación insertada correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+        console.log('Hubo un error... ' + err.message);
+    }
+});
+
+app.put('/api/vehiculos/update/:id', async (req, res) => {
   try {
       const { vin } = req.params;
       const {
-          marca,
-          submarca,
-          modelo,
-          combustible,
-          transmision,
-          numpuertas,
-          numejes,
-          tipovehiculo,
-          estacionamiento,
-          ubicacion,
-          num_placa,
+          marca, //string nombre de la marca
+          submarca, //string
+          modelo, //string año
+          combustible, //string nombre del combustible
+          transmision, //string nombre de la transmision
+          numpuertas, //int
+          numejes, //int
+          tipovehiculo, //string nombre del tipo de vehiculo
+          estacionamiento, //int numero del estacionamiento
+          ubicacion, //string nombre del edificio
+          num_placa, //string (7)
       } = req.body;
 
       // Obtener los IDs de las tablas relacionadas
@@ -163,7 +233,7 @@ app.put('/api/vehiculos/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/vehiculos/:id', async (req, res) => {
+app.delete('/api/vehiculos/delete/:id', async (req, res) => {
   try {
       const { vin } = req.params;
 
