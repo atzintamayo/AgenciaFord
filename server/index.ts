@@ -15,6 +15,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
+//Vehiculos
+//********************************************************************************************************************
+
+
+// Obtener todos los vehículos
 app.get('/api/vehiculos', async (req, res) => {
   try {
       const vehiculos = await db.any(`
@@ -64,6 +69,7 @@ app.get('/api/vehiculos', async (req, res) => {
   }
 });
 
+//Insertar vehiculos
 app.post('/api/vehiculos/insert', async (req, res) => {
   try {
       const {
@@ -181,6 +187,7 @@ app.post('/api/seguro/insert/', async (req, res) => {
     }
 });
 
+//Modificar vehiculos
 app.put('/api/vehiculos/update/:id', async (req, res) => {
   try {
       const { vin } = req.params;
@@ -233,6 +240,7 @@ app.put('/api/vehiculos/update/:id', async (req, res) => {
   }
 });
 
+//Eliminar vehiculos
 app.delete('/api/vehiculos/delete/:id', async (req, res) => {
   try {
       const { vin } = req.params;
@@ -253,6 +261,233 @@ app.delete('/api/vehiculos/delete/:id', async (req, res) => {
   }
 });
 
+//Patios
+//********************************************************************************************************************
+
+// Obtener todos los patios
+app.get('/api/patios', async (req, res) => {
+    try {
+        const patios = await db.any(`
+        SELECT 
+            ed.nombre AS edificio,
+            tipo.nombre AS tipo,
+            CONCAT(de.municipio, ', ', d.entidad), AS ubicacion,
+            CONCAT(p.nombres, ' ', p.apellido1) AS responsable,
+            ed.telefono
+        FROM edificio ed
+        JOIN cat_tipoedificio tipo ON ed.fk_tipoedificio = tipo.id_tipoedificio
+        JOIN direccion d ON ed.fk_direccion = d.id_direccion
+        JOIN persona p ON ed.fk_persona = p.id_persona;
+
+        `);/* OBTIENE:
+                string edificio (nombre del edificio), 
+                string tipo (nombre del tipo de edificio),
+                string ubicacion (municipio, entidad),
+                string responsable (nombres y primer apellido del responsable),
+                string telefono
+           */ 
+  
+      res.json(patios);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+      console.log('hubo un error... ' + err.message);
+    }
+  });
+  
+  /* EN PROCESO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  //Insertar patios
+  app.post('/api/patios/insert', async (req, res) => {
+    try {
+        const {
+            vin, //string (17)
+            marca, //string nombre de la marca
+            submarca, //string
+            modelo,  //string año
+            combustible, //string nombre del combustible
+            transmision, //string nombre de la transmision
+            numpuertas, //int
+            numejes, //int
+            tipovehiculo, //string nombre del tipo de vehiculo
+            estacionamiento, //int numero del estacionamiento
+            ubicacion, //string nombre del edificio
+            num_placa, //string (7)
+        } = req.body;
+  
+        // Obtener los IDs de las tablas relacionadas
+        const idMarca = await db.one('SELECT id_marca FROM cat_marca WHERE nombre = $1', [marca]);
+        const idCombustible = await db.one('SELECT id_combustible FROM cat_combustible WHERE nombre = $1', [combustible]);
+        const idTransmision = await db.one('SELECT id_transmision FROM cat_transmision WHERE nombre = $1', [transmision]);
+        const idTipoVehiculo = await db.one('SELECT id_tipovehiculo FROM cat_tipovehiculo WHERE nombre = $1', [tipovehiculo]);
+        const idEdificio = await db.one('SELECT id_edificio FROM edificio WHERE nombre = $1', [ubicacion]);
+        const idEstacionamiento = await db.one('SELECT id_estacionamiento FROM estacionamiento WHERE estacionamiento = $1 AND fk_edificio = $2', [estacionamiento, idEdificio.id_edificio]);
+  
+        // Insertar el vehículo
+        await db.none(
+            `INSERT INTO vehiculo (fk_marca, submarca, modelo, fk_combustible, fk_transmision, numpuertas, numejes, fk_tipovehiculo, fk_estacionamiento, num_placa, vin)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+                idMarca.id_marca,
+                submarca,
+                modelo,
+                idCombustible.id_combustible,
+                idTransmision.id_transmision,
+                numpuertas,
+                numejes,
+                idTipoVehiculo.id_tipovehiculo,
+                idEstacionamiento.id_estacionamiento,
+                num_placa,
+                vin
+            ]
+        );
+  
+        res.status(201).json({ message: 'Vehículo insertado correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+        console.log('Hubo un error... ' + err.message);
+    }
+  });
+  
+  app.post('/api/importaciones/insert/', async (req, res) => {
+      try {
+          const {
+  
+              aduana_ing, //string
+              fecha_in, //date
+              num_in, //int
+              vin, //string
+              num_aduana, //string (2)
+          } = req.body;
+    
+          // Insertar la importacion
+          await db.none(
+              `INSERT INTO importaciones (aduana_ing, fecha_in, num_in, fk_vin, num_aduana)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                  aduana_ing,
+                  fecha_in,
+                  num_in,
+                  vin,
+                  num_aduana,
+              ]
+          );
+    
+          res.status(201).json({ message: 'importación insertada correctamente' });
+      } catch (err) {
+          res.status(500).json({ error: err.message });
+          console.log('Hubo un error... ' + err.message);
+      }
+  });
+  
+  app.post('/api/seguro/insert/', async (req, res) => {
+      try {
+          const {
+  
+              poliza, //string
+              aseguradora, //string nombre de la aseguradora
+              vin, //string
+              vencimiento, //date
+              cobertura, //string nombre de la cobertura
+  
+          } = req.body;
+  
+          const idAseguradora = await db.one('SELECT id_aseguradora FROM aseguradora WHERE nombre = $1', [aseguradora]);
+          const idCobertura = await db.one('SELECT id FROM cat_cobertura WHERE nombre = $1', [cobertura]);
+          
+          // Insertar la importacion
+          await db.none(
+              `INSERT INTO importaciones (aduana_ing, fecha_in, num_in, fk_vin, num_aduana)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                  poliza,
+                  idAseguradora.id_aseguradora,
+                  vin,
+                  vencimiento,
+                  idCobertura.id,
+              ]
+          );
+    
+          res.status(201).json({ message: 'importación insertada correctamente' });
+      } catch (err) {
+          res.status(500).json({ error: err.message });
+          console.log('Hubo un error... ' + err.message);
+      }
+  });
+  
+  //Modificar patios
+  app.put('/api/patios/update/:id', async (req, res) => {
+    try {
+        const { vin } = req.params;
+        const {
+            marca, //string nombre de la marca
+            submarca, //string
+            modelo, //string año
+            combustible, //string nombre del combustible
+            transmision, //string nombre de la transmision
+            numpuertas, //int
+            numejes, //int
+            tipovehiculo, //string nombre del tipo de vehiculo
+            estacionamiento, //int numero del estacionamiento
+            ubicacion, //string nombre del edificio
+            num_placa, //string (7)
+        } = req.body;
+  
+        // Obtener los IDs de las tablas relacionadas
+        const idMarca = await db.one('SELECT id_marca FROM cat_marca WHERE nombre = $1', [marca]);
+        const idCombustible = await db.one('SELECT id_combustible FROM cat_combustible WHERE nombre = $1', [combustible]);
+        const idTransmision = await db.one('SELECT id_transmision FROM cat_transmision WHERE nombre = $1', [transmision]);
+        const idTipoVehiculo = await db.one('SELECT id_tipovehiculo FROM cat_tipovehiculo WHERE nombre = $1', [tipovehiculo]);
+        const idEdificio = await db.one('SELECT id_edificio FROM edificio WHERE nombre = $1', [ubicacion]);
+        const idEstacionamiento = await db.one('SELECT id_estacionamiento FROM estacionamiento WHERE estacionamiento = $1 AND fk_edificio = $2', [estacionamiento, idEdificio.id_edificio]);
+  
+        // Actualizar el vehículo
+        await db.none(
+            `UPDATE vehiculo
+             SET fk_marca = $1, submarca = $2, modelo = $3, fk_combustible = $4, fk_transmision = $5, numpuertas = $6, num_ejes = $7, fk_tipovehiculo = $8, fk_estacionamiento = $9, num_placa = $10
+             WHERE vin = $12`,
+            [
+                idMarca.id_marca,
+                submarca,
+                modelo,
+                idCombustible.id_combustible,
+                idTransmision.id_transmision,
+                numpuertas,
+                numejes,
+                idTipoVehiculo.id_tipovehiculo,
+                idEstacionamiento.id_estacionamiento,
+                num_placa,
+                vin
+            ]
+        );
+  
+        res.status(200).json({ message: 'Vehículo actualizado correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+        console.log('Hubo un error... ' + err.message);
+    }
+  });
+  
+  //Eliminar patios
+  app.delete('/api/patios/delete/:id', async (req, res) => {
+    try {
+        const { vin } = req.params;
+  
+        // Verificar si el vehículo existe
+        const vehiculoExistente = await db.oneOrNone('SELECT vin FROM vehiculo WHERE vin = $1', [vin]);
+        if (!vehiculoExistente) {
+            return res.status(404).json({ error: 'Vehículo no encontrado' });
+        }
+  
+        // Eliminar el vehículo
+        await db.none('DELETE FROM vehiculo WHERE vin = $1', [vin]);
+  
+        res.status(200).json({ message: 'Vehículo eliminado correctamente' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+        console.log('Hubo un error... ' + err.message);
+    }
+  });
+*/
 app.listen(port, () => {
   console.log(`Backend corriendo en http://localhost:${port}`);
 });
